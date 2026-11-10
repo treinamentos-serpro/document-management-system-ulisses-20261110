@@ -1,60 +1,56 @@
 const { randomUUID } = require('node:crypto');
 const documentRepository = require('../repositories/documentRepository');
 const fileStorage = require('../repositories/fileStorage');
+const { DEFAULT_OWNER } = require('../config/constants');
 
-const DEFAULT_OWNER = 'anonimo';
 const DEFAULT_MIME_TYPE = 'application/octet-stream';
 
 function resolveOwner(ownerHeader) {
-  const owner = typeof ownerHeader === 'string' ? ownerHeader.trim() : '';
-  return owner || DEFAULT_OWNER;
+  return (ownerHeader || '').trim() || DEFAULT_OWNER;
 }
 
-// storedName é interno e não é exposto na API.
-function toPublicMetadata({ storedName, ...metadata }) {
-  return metadata;
+// Lista de inclusão: campos internos (como storedName) nunca saem desta camada.
+function toPublicMetadata({ id, originalName, size, uploadedAt, owner, mimeType }) {
+  return { id, originalName, size, uploadedAt, owner, mimeType };
 }
 
-// O multer decodifica o nome original como latin1; reinterpreta como UTF-8.
-function decodeOriginalName(originalName) {
-  return Buffer.from(originalName, 'latin1').toString('utf8');
-}
-
-function createDocument({ file, ownerHeader }) {
+// file é um DTO já convertido pela borda HTTP: { originalName, size, mimeType, storedName }.
+function createDocument({ file, owner }) {
   const document = {
     id: randomUUID(),
-    originalName: decodeOriginalName(file.originalname),
+    originalName: file.originalName,
     size: file.size,
     uploadedAt: new Date().toISOString(),
-    owner: resolveOwner(ownerHeader),
-    mimeType: file.mimetype || DEFAULT_MIME_TYPE,
-    storedName: file.filename,
+    owner: resolveOwner(owner),
+    mimeType: file.mimeType || DEFAULT_MIME_TYPE,
+    storedName: file.storedName,
   };
 
   documentRepository.save(document);
   return toPublicMetadata(document);
 }
 
-function listDocuments(ownerHeader) {
+function listDocuments(owner) {
   return documentRepository
-    .findAllByOwner(resolveOwner(ownerHeader))
+    .findAllByOwner(resolveOwner(owner))
     .map(toPublicMetadata);
 }
 
-// Retorna null quando o documento não existe ou o arquivo sumiu do disco.
-async function getDownloadableDocument(id) {
+// Retorna null quando o documento não existe, pertence a outro dono ou o arquivo sumiu do disco.
+async function getDownloadableDocument(id, owner) {
   const document = documentRepository.findById(id);
-  if (!document) {
+  if (!document || document.owner !== resolveOwner(owner)) {
     return null;
   }
 
   const filePath = fileStorage.resolveFilePath(document.storedName);
-  if (!(await fileStorage.fileExists(filePath))) {
+  if (!filePath || !(await fileStorage.fileExists(filePath))) {
     return null;
   }
 
   return { metadata: toPublicMetadata(document), filePath };
 }
+
 
 module.exports = {
   createDocument,

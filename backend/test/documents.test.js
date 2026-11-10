@@ -90,7 +90,7 @@ test('GET /documents lista somente os documentos do dono informado', async () =>
 
   const documents = await response.json();
   assert.ok(Array.isArray(documents));
-  assert.ok(documents.length >= 1);
+  assert.strictEqual(documents.length, 1);
   documents.forEach((document) => {
     assert.strictEqual(document.owner, 'listagem-user');
     assert.strictEqual(document.storedName, undefined);
@@ -132,3 +132,51 @@ test('GET /documents/:id/download retorna 404 quando o arquivo sumiu do disco', 
   const response = await fetch(`${baseUrl}/documents/${uploaded.id}/download`);
   assert.strictEqual(response.status, 404);
 });
+
+test('GET /documents/:id/download de documento de outro dono retorna 404', async () => {
+  const uploaded = await (await uploadFile('privado', { owner: 'dono-a' })).json();
+
+  const forbidden = await fetch(`${baseUrl}/documents/${uploaded.id}/download`, {
+    headers: { 'X-User-Id': 'dono-b' },
+  });
+  assert.strictEqual(forbidden.status, 404);
+
+  const allowed = await fetch(`${baseUrl}/documents/${uploaded.id}/download`, {
+    headers: { 'X-User-Id': 'dono-a' },
+  });
+  assert.strictEqual(allowed.status, 200);
+  assert.strictEqual(await allowed.text(), 'privado');
+});
+
+test('X-User-Id com formato inválido retorna 400 e não grava o arquivo', async () => {
+  const filesBefore = fs.readdirSync(STORAGE_DIR).length;
+  const response = await uploadFile('invalido', { owner: 'dono com espaço!' });
+
+  assert.strictEqual(response.status, 400);
+  assert.match((await response.json()).error, /X-User-Id inválido/);
+  assert.strictEqual(fs.readdirSync(STORAGE_DIR).length, filesBefore);
+});
+
+test('GET /documents com X-User-Id acima de 64 caracteres retorna 400', async () => {
+  const response = await fetch(`${baseUrl}/documents`, {
+    headers: { 'X-User-Id': 'a'.repeat(65) },
+  });
+  assert.strictEqual(response.status, 400);
+});
+
+test('JSON malformado retorna 400 no formato { error }', async () => {
+  const response = await fetch(`${baseUrl}/documents`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{ invalido',
+  });
+  assert.strictEqual(response.status, 400);
+  assert.match((await response.json()).error, /JSON/);
+});
+
+test('rota inexistente retorna 404 no formato { error }', async () => {
+  const response = await fetch(`${baseUrl}/rota-que-nao-existe`);
+  assert.strictEqual(response.status, 404);
+  assert.match((await response.json()).error, /Rota não encontrada/);
+});
+

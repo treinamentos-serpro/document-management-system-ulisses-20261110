@@ -10,7 +10,8 @@ function saveBlob(blob, fileName) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  // Adia a revogação: alguns navegadores cancelam o download se a URL for revogada logo após o clique.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export default function DownloadButton({ documentId, fileName }) {

@@ -3,12 +3,16 @@ import { listDocuments } from '../services/documentService.js';
 import DownloadButton from './DownloadButton.jsx';
 
 const BYTES_PER_KB = 1024;
+const BYTES_PER_MB = BYTES_PER_KB * 1024;
 
 function formatFileSize(bytes) {
   if (bytes < BYTES_PER_KB) {
     return `${bytes} B`;
   }
-  return `${(bytes / BYTES_PER_KB).toFixed(1)} KB`;
+  if (bytes < BYTES_PER_MB) {
+    return `${(bytes / BYTES_PER_KB).toFixed(1)} KB`;
+  }
+  return `${(bytes / BYTES_PER_MB).toFixed(1)} MB`;
 }
 
 function formatUploadDate(isoDate) {
@@ -73,14 +77,14 @@ export default function DocumentList({ owner, refreshKey }) {
         </tr>
       </thead>
       <tbody>
-        {documents.map((document) => (
-          <tr key={document.id}>
-            <td>{document.originalName}</td>
-            <td>{formatFileSize(document.size)}</td>
-            <td>{formatUploadDate(document.uploadedAt)}</td>
-            <td>{document.owner}</td>
+        {documents.map((item) => (
+          <tr key={item.id}>
+            <td>{item.originalName}</td>
+            <td>{formatFileSize(item.size)}</td>
+            <td>{formatUploadDate(item.uploadedAt)}</td>
+            <td>{item.owner}</td>
             <td>
-              <DownloadButton documentId={document.id} fileName={document.originalName} />
+              <DownloadButton documentId={item.id} fileName={item.originalName} />
             </td>
           </tr>
         ))}

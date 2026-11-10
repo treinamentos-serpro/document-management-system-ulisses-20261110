@@ -1,9 +1,17 @@
+const { randomUUID } = require('node:crypto');
 const multer = require('multer');
-const { MAX_FILE_SIZE } = require('../config/env');
-const fileStorage = require('../repositories/fileStorage');
+const { MAX_FILE_SIZE, STORAGE_DIR } = require('../config/env');
+
+// Nome em disco gerado por UUID: não colide e não expõe o nome original.
+const diskStorage = multer.diskStorage({
+  destination: STORAGE_DIR,
+  filename(req, file, callback) {
+    callback(null, randomUUID());
+  },
+});
 
 const upload = multer({
-  storage: fileStorage.diskStorage,
+  storage: diskStorage,
   limits: { fileSize: MAX_FILE_SIZE },
 });
 

@@ -1,22 +1,16 @@
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
-const { randomUUID } = require('node:crypto');
-const multer = require('multer');
 const { STORAGE_DIR } = require('../config/env');
 
-// Nome em disco gerado por UUID: não colide e não expõe o nome original.
-const diskStorage = multer.diskStorage({
-  destination(req, file, callback) {
-    fs.mkdir(STORAGE_DIR, { recursive: true }, (error) => callback(error, STORAGE_DIR));
-  },
-  filename(req, file, callback) {
-    callback(null, randomUUID());
-  },
-});
+function ensureStorageDir() {
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
+}
 
+// Retorna null se o caminho escapar do diretório de armazenamento (ex.: "../").
 function resolveFilePath(storedName) {
-  return path.join(STORAGE_DIR, storedName);
+  const filePath = path.resolve(STORAGE_DIR, storedName);
+  return filePath.startsWith(STORAGE_DIR + path.sep) ? filePath : null;
 }
 
 async function fileExists(filePath) {
@@ -29,7 +23,7 @@ async function fileExists(filePath) {
 }
 
 module.exports = {
-  diskStorage,
+  ensureStorageDir,
   resolveFilePath,
   fileExists,
 };

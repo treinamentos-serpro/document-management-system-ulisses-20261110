@@ -13,8 +13,12 @@
 const express = require('express');
 const { PORT } = require('./config/env');
 const documentRoutes = require('./routes/documentRoutes');
+const fileStorage = require('./repositories/fileStorage');
+const { notFound, errorHandler } = require('./middlewares/errorHandler');
 
 const app = express();
+
+fileStorage.ensureStorageDir();
 
 app.use(express.json());
 
@@ -24,6 +28,8 @@ app.get('/health', (req, res) => {
 });
 
 app.use(documentRoutes);
+app.use(notFound);
+app.use(errorHandler);
 
 if (require.main === module) {
   app.listen(PORT, () => {

@@ -20,11 +20,11 @@ export default function UploadComponent({ owner, onUploaded }) {
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      const document = await uploadDocument(selectedFile, owner);
-      setSuccessMessage(`"${document.originalName}" enviado com sucesso.`);
+      const uploadedDocument = await uploadDocument(selectedFile, owner);
+      setSuccessMessage(`"${uploadedDocument.originalName}" enviado com sucesso.`);
       setSelectedFile(null);
       form.reset();
-      onUploaded?.(document);
+      onUploaded?.(uploadedDocument);
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
